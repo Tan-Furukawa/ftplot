@@ -29,15 +29,14 @@ plane_plot <- \(...) plot(NA, NA, xlim=c(0,1), ylim=c(0,1), xlab = "", ylab = ""
 #' orig <- norm$rev_fn(norm$nx)
 #'
 #' @export
-normalize_vec <- function(x, range = c(0.0, 1.0)) {
-    min_x = min(x)
-    max_x = max(x)
-    return (
-        list(
-            nx = (x - min_x) / (max_x - min_x) * (range[2] - range[1]) + range[1],
-            rev_fn = function(y) (y - range[1]) * (max_x - min_x) / (range[2] - range[1]) + min_x
-        )
+normalize_vec <- \(range = c(0.0, 1.0)) \(x) {
+  min_x = min(x); max_x = max(x)
+  return (
+    list(
+      nx = (x - min_x) / (max_x - min_x) * (range[2] - range[1]) + range[1],
+      rev_fn = \(y) (y - range[1]) * (max_x - min_x) / (range[2] - range[1]) + min_x
     )
+  )
 }
 
 #' make_object 関数
