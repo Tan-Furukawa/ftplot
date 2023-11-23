@@ -1,4 +1,4 @@
-#' plane_plot 関数
+#' plane_plot
 #'
 #' この関数は、空のプロット領域を作成します。デフォルトでは、x軸とy軸の範囲は[0, 1]に設定され、ラベルや軸は表示されません。
 #'
@@ -17,8 +17,8 @@ plane_plot <- \(...) plot(NA, NA, xlim=c(0,1), ylim=c(0,1), xlab = "", ylab = ""
 #'
 #' この関数は、ベクトルを指定された範囲に正規化します。デフォルトでは、[0.0, 1.0]の範囲に正規化されます。
 #'
-#' @param x 正規化するベクトル
 #' @param range 正規化される範囲の指定。デフォルトは [0.0, 1.0]
+#' @param x 正規化するベクトル
 #' @return ベクトルの正規化結果と逆変換関数のリスト
 #' @examples
 #' # 例: ベクトルの正規化
@@ -29,11 +29,13 @@ plane_plot <- \(...) plot(NA, NA, xlim=c(0,1), ylim=c(0,1), xlab = "", ylab = ""
 #' orig <- norm$rev_fn(norm$nx)
 #'
 #' @export
-normalize_vec <- \(range = c(0.0, 1.0)) \(x) {
-  min_x = min(x); max_x = max(x)
+normalize_vec <- \(range = c(0.0, 1.0), x, xlim=c(NA,NA)) {
+  if (is.na(xlim[1])) min_x = min(x) else min_x = xlim[1]
+  if (is.na(xlim[2])) max_x = max(x) else max_x = xlim[2]
   return (
     list(
       nx = (x - min_x) / (max_x - min_x) * (range[2] - range[1]) + range[1],
+      norm_fn = \(y) (y - min_x) / (max_x - min_x) * (range[2] - range[1]) + range[1],
       rev_fn = \(y) (y - range[1]) * (max_x - min_x) / (range[2] - range[1]) + min_x
     )
   )
@@ -50,43 +52,44 @@ normalize_vec <- \(range = c(0.0, 1.0)) \(x) {
 #' @return グラフィカルなオブジェクトを含むリスト
 #' @examples
 #' # 例: グラフィカルオブジェクトを生成
-#' obj <- make_object(y_range = c(0, 100), vec_x = 1:10, vec_y = c(20, 30, 40, 50, 60, 70, 80, 90, 100, 110))
-#'
-#' # グラフィカルオブジェクトの使用例
+#' obj <- make_object(y_range = c(0, 1), vec_x = 1:10, vec_y = c(20, 30, 40, 50, 60, 70, 80, 90, 100, 110))
+#' plane_plot()
 #' obj$xaxis()
 #' obj$lines()
 #' obj$points()
 #'
 #' @export
-make_object <- \(y_range, vec_x, vec_y, x_range=c(0,1)) {
-    normalize_fn_y <- normalize_vec(range=y_range)
-    normalize_fn_x <- normalize_vec(range=x_range)
-    nvec_y <- vec_y %>% normalize_fn_y
+make_object <- \(y_range, vec_x, vec_y, x_range=c(0,1), xlim=c(NA,NA)) {
+    normalize_y <- normalize_vec(range=y_range, vec_y)
+    normalize_x <- normalize_vec(range=x_range, vec_x, xlim=xlim)
+    nvec_y <- normalize_y$nx
+
     return (
         list(
             xaxis = \(npretty = 5, ...) {
                 at <- vec_x %>% pretty(n = npretty)
-                nat <- at %>% normalize_fn_x %>% (\(x) x$nx)
-                axis(side = 1, at=at, labels=nat, ...)
+                nat <- at %>%  (normalize_x$norm_fn)
+                print(nat)
+                axis(side = 1, at=nat, labels=at, ...)
             },
-            lines = \(...) lines(vec_x, nvec_y$nx, ...),
-            points = \(...) points(vec_x, nvec_y$nx, ...),
+            lines = \(...) lines(vec_x, nvec_y, ...),
+            points = \(...) points(vec_x, nvec_y, ...),
             yaxis = \(npretty = 3, ...) {
                 at <- vec_y %>% pretty(n = npretty)
-                nat <- at %>% normalize_fn_y %>% (\(x) x$nx)
+                nat <- at %>% (normalize_y$norm_fn)
                 axis(at=nat, labels=at, ...)
             },
             get_yaxis_space = \(npretty = 3) {
                 at <- vec_y %>% pretty(n = npretty)
-                nat <- at %>% normalize_fn_y %>% (\(x) x$nx)
+                nat <- at %>%  (normalize_y$norm_fn)
                 return (nat[2] - nat[1])
             },
             regression = \(...) {
-                fit <- lm(y ~ x + 1, data = data.frame(x = vec_x, y = nvec_y$nx))
+                fit <- lm(y ~ x + 1, data = data.frame(x = vec_x, y = nvec_y))
                 abline(fit, ...)
             },
             ytext = \(text, ...) {
-                at <- vec_y %>% pretty() %>% normalize_fn_y %>% (\(x) x$nx)
+                at <- vec_y %>% pretty() %>% (normalize_y$norm_fn)
                 mtext(text, at = mean(at), line=2.5, cex = 1.2,...)
             }
         )
